@@ -222,7 +222,6 @@ function M.render()
         vim.api.nvim_win_set_buf(winid_by_type.path, bufnr_by_type.path)
         vim.wo[winid_by_type.path].signcolumn = 'no' -- TODO: bug: сбрасывает на обычных буферах
         vim.cmd('set relativenumber!')
-        vim.cmd('%right ' .. path_max_len)
         vim.cmd('vsplit')
         vim.api.nvim_win_set_width(winid_by_type.path, path_max_len)
     end
@@ -247,6 +246,8 @@ function M.render()
         M.preview_renderer_register()
     end
 
+    vim.api.nvim_set_current_win(winid_by_type.path)
+    vim.cmd('%right ' .. path_max_len)
     -- set active file win
     vim.api.nvim_set_current_win(winid_by_type.file)
 end
