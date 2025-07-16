@@ -1,8 +1,14 @@
 local M = {}
 
+-- require "logging.file"
+-- local logger = logging.file {
+--     filename = "debug.log",
+-- }
+
 local paths = {}
 local current_buf = nil
 local alt_buf = nil
+local signcolumn_value
 local opened = false
 local bufnr_by_type = {
     path = nil,
@@ -82,13 +88,14 @@ end
 function M.cleanup()
     for _, buf in ipairs(vim.api.nvim_list_bufs()) do
         if vim.bo[buf].filetype == 'bufoil' then
-            vim.api.nvim_buf_delete(
-                buf, { force = true })
+            vim.api.nvim_buf_delete(buf, { force = true })
         end
     end
 
     winid_by_type = { path = nil, file = nil, preview = nil }
+
     vim.api.nvim_del_augroup_by_name(augroup_name)
+    vim.wo[vim.api.nvim_get_current_win()].signcolumn = signcolumn_value
     opened = false
 end
 
@@ -101,11 +108,12 @@ function M.select()
     local current_line_number = vim.api.nvim_win_get_cursor(0)[1]
     local selected = paths[current_line_number]
 
-    M.cleanup()
     if selected == current_buf then
+        M.cleanup()
         M.set_alternate_buffer(alt_buf)
     elseif selected ~= nil then
-        vim.cmd('buffer ' .. vim.fn.bufnr(selected, false))
+        vim.api.nvim_open_win(vim.fn.bufnr(selected, false), true, { split = 'right' })
+        M.cleanup()
         M.set_alternate_buffer(current_buf)
     end
 end
@@ -174,6 +182,8 @@ function M.preview_renderer_register()
 end
 
 function M.render()
+    signcolumn_value = vim.wo[vim.api.nvim_get_current_win()].signcolumn
+
     local path_table, file_table, path_max_len, file_max_len = M.split_paths()
 
     ---- check not existed plugin buffers
@@ -216,40 +226,37 @@ function M.render()
     M.render_preview(paths[default_start_line])
 
     ---- create windows
-    --- 1. path
     if winid_by_type.path == nil or not vim.api.nvim_win_is_valid(winid_by_type.path) then
         winid_by_type.path = vim.api.nvim_get_current_win()
         vim.api.nvim_win_set_buf(winid_by_type.path, bufnr_by_type.path)
-        vim.wo[winid_by_type.path].signcolumn = 'no' -- TODO: bug: сбрасывает на обычных буферах
-        vim.cmd('set relativenumber!')
-        vim.cmd('vsplit')
-        vim.api.nvim_win_set_width(winid_by_type.path, path_max_len)
     end
 
-    --- 2. file
     if winid_by_type.file == nil or not vim.api.nvim_win_is_valid(winid_by_type.file) then
-        winid_by_type.file = vim.api.nvim_get_current_win()
-        vim.api.nvim_win_set_buf(winid_by_type.file, bufnr_by_type.file)
+        winid_by_type.file = vim.api.nvim_open_win(bufnr_by_type.file, true, { split = 'right' })
+    end
+
+    if winid_by_type.preview == nil or not vim.api.nvim_win_is_valid(winid_by_type.preview) then
+        winid_by_type.preview = vim.api.nvim_open_win(bufnr_by_type.preview, true, { split = 'right' })
 
         if vim.api.nvim_buf_line_count(bufnr_by_type.file) > 1 then
             vim.api.nvim_win_set_cursor(winid_by_type.file, { default_start_line, 0 })
         end
-
-        vim.cmd('vsplit')
-        vim.api.nvim_win_set_width(winid_by_type.file, file_max_len)
     end
 
-    --- 3. preview
-    if winid_by_type.preview == nil or not vim.api.nvim_win_is_valid(winid_by_type.preview) then
-        winid_by_type.preview = vim.api.nvim_get_current_win()
-        vim.api.nvim_win_set_buf(winid_by_type.preview, bufnr_by_type.preview)
-        M.preview_renderer_register()
-    end
+    vim.api.nvim_win_set_width(winid_by_type.path, path_max_len)
+    vim.api.nvim_win_set_width(winid_by_type.file, file_max_len)
+
+    vim.wo[winid_by_type.path].signcolumn = 'no'
+    vim.wo[winid_by_type.file].signcolumn = 'no'
+    vim.wo[winid_by_type.preview].signcolumn = 'no'
 
     vim.api.nvim_set_current_win(winid_by_type.path)
+    vim.cmd('set nornu')
     vim.cmd('%right ' .. path_max_len)
-    -- set active file win
+    -- set cursor on 'file' window
     vim.api.nvim_set_current_win(winid_by_type.file)
+
+    M.preview_renderer_register()
 end
 
 function M.refresh_buffer_list()
