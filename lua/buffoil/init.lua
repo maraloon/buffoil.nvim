@@ -8,7 +8,7 @@ local M = {}
 local paths = {}
 local current_buf = nil
 local alt_buf = nil
-local signcolumn_value
+local signcolumn_value = nil
 local opened = false
 local bufnr_by_type = {
     path = nil,
@@ -95,7 +95,9 @@ function M.cleanup()
     winid_by_type = { path = nil, file = nil, preview = nil }
 
     vim.api.nvim_del_augroup_by_name(augroup_name)
-    vim.wo[vim.api.nvim_get_current_win()].signcolumn = signcolumn_value
+    if signcolumn_value ~= nil then
+        vim.wo[vim.api.nvim_get_current_win()].signcolumn = signcolumn_value
+    end
     opened = false
 end
 
@@ -182,7 +184,9 @@ function M.preview_renderer_register()
 end
 
 function M.render()
-    signcolumn_value = vim.wo[vim.api.nvim_get_current_win()].signcolumn
+    if signcolumn_value == nil then
+        signcolumn_value = vim.wo[vim.api.nvim_get_current_win()].signcolumn
+    end
 
     local path_table, file_table, path_max_len, file_max_len = M.split_paths()
 
