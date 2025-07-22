@@ -244,6 +244,7 @@ function M.render()
 
         if vim.api.nvim_buf_line_count(bufnr_by_type.file) > 1 then
             vim.api.nvim_win_set_cursor(winid_by_type.file, { default_start_line, 0 })
+            vim.defer_fn(function() vim.fn.feedkeys('zb') end, 0)
         end
     end
 
