@@ -1,9 +1,9 @@
 local M = {}
 
--- require "logging.file"
--- local logger = logging.file {
---     filename = "debug.log",
--- }
+require "logging.file"
+local logger = logging.file {
+    filename = "debug.log",
+}
 
 local paths = {}
 local current_buf = nil
@@ -277,15 +277,17 @@ function M.refresh_buffer_list()
 
     for _, bufnr in ipairs(bufnrs) do
         local name = vim.api.nvim_buf_get_name(bufnr)
-        if not (name == "" or name:match(".*://.*")) then
+        if not (name == "" or name:match(".*://.*") or name:match("^/tmp/")) then
+            logger:debug(bufnr .. ': ' .. name)
             table.insert(paths, vim.fn.fnamemodify(name, ":."))
         end
+        logger:debug('\n')
     end
 end
 
 function M.register_keymaps()
     vim.api.nvim_buf_set_keymap(bufnr_by_type.file, 'n', '<cr>', ':lua require("buffoil").select()<cr>',
-        { noremap = true, silent = true })
+        {})
     vim.api.nvim_buf_set_keymap(bufnr_by_type.file, 'n', '<esc>', ':lua require("buffoil").close()<cr>',
         { noremap = true, silent = true })
     vim.api.nvim_buf_set_keymap(bufnr_by_type.file, 'n', '<C-c>', ':lua require("buffoil").close()<cr>',
