@@ -161,7 +161,7 @@ function M.preview_renderer_register()
             local _, file_table = M.split_paths()
 
             local curr_line_count = vim.api.nvim_buf_line_count(0)
-            if curr_line_count < last_line_count then
+            if curr_line_count == last_line_count - 1 then
                 local lines = vim.api.nvim_buf_get_lines(bufnr_by_type.file, 0, -1, false)
                 local deleted_line_idx = #file_table
                 for i, line in ipairs(lines) do
@@ -171,14 +171,13 @@ function M.preview_renderer_register()
                     end
                 end
 
-                -- TODO: bug: sometimes it not deleted, just listed down
                 vim.api.nvim_buf_delete(vim.fn.bufnr(paths[deleted_line_idx]), { force = true })
                 table.remove(paths, deleted_line_idx)
 
                 M.render()
                 M.render_preview(paths[vim.fn.line('.')])
+                last_line_count = last_line_count - 1
             end
-            last_line_count = curr_line_count
         end
     })
 end
@@ -260,8 +259,6 @@ function M.render()
     vim.cmd('%right ' .. path_max_len)
     -- set cursor on 'file' window
     vim.api.nvim_set_current_win(winid_by_type.file)
-
-    M.preview_renderer_register()
 end
 
 function M.refresh_buffer_list()
@@ -278,10 +275,8 @@ function M.refresh_buffer_list()
     for _, bufnr in ipairs(bufnrs) do
         local name = vim.api.nvim_buf_get_name(bufnr)
         if not (name == "" or name:match(".*://.*") or name:match("^/tmp/")) then
-            logger:debug(bufnr .. ': ' .. name)
             table.insert(paths, vim.fn.fnamemodify(name, ":."))
         end
-        logger:debug('\n')
     end
 end
 
@@ -307,6 +302,7 @@ function M.show()
 
     M.refresh_buffer_list()
     M.render()
+    M.preview_renderer_register()
     M.register_keymaps()
 end
 
