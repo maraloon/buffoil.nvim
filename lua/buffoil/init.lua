@@ -188,6 +188,7 @@ function M.render()
     end
 
     local path_table, file_table, path_max_len, file_max_len = M.split_paths()
+    -- logger:debug(file_max_len)
 
     ---- check not existed plugin buffers
     local buf_exists = {
@@ -248,7 +249,7 @@ function M.render()
     end
 
     vim.api.nvim_win_set_width(winid_by_type.path, path_max_len)
-    vim.api.nvim_win_set_width(winid_by_type.file, file_max_len)
+    vim.api.nvim_win_set_width(winid_by_type.file, file_max_len + 3)
 
     vim.wo[winid_by_type.path].signcolumn = 'no'
     vim.wo[winid_by_type.file].signcolumn = 'no'
