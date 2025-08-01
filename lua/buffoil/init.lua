@@ -254,6 +254,10 @@ function M.render()
     vim.wo[winid_by_type.path].signcolumn = 'no'
     vim.wo[winid_by_type.file].signcolumn = 'no'
     vim.wo[winid_by_type.preview].signcolumn = 'no'
+    vim.wo[winid_by_type.path].winbar = 'Paths'
+    vim.wo[winid_by_type.file].winbar = 'Filenames'
+    vim.wo[winid_by_type.preview].winbar = 'Preview'
+    vim.opt.statusline = 'buffoil.nvim'
 
     vim.api.nvim_set_current_win(winid_by_type.path)
     vim.cmd('set nornu')
