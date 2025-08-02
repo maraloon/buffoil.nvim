@@ -24,6 +24,12 @@ local winid_by_type = {
 local default_start_line = 2
 local augroup_name = 'OilBuf'
 
+
+local prev_line_pos = nil
+local curr_line_pos = nil
+local prev_lines_count = nil
+local curr_lines_count = nil
+
 function M.split_paths()
     local left_side = {}
     local right_side = {}
@@ -139,29 +145,42 @@ function M.render_preview(path)
     end
 end
 
-local function delete_buffer()
-    local last_line_count = vim.api.nvim_buf_line_count(bufnr_by_type.file)
+local function register_line_movements()
+    prev_line_pos = vim.api.nvim_win_get_cursor(winid_by_type.file)[1]
+    curr_line_pos = prev_line_pos
+
+    prev_lines_count = vim.api.nvim_buf_line_count(bufnr_by_type.file)
+    curr_lines_count = prev_lines_count
 
     return function()
-        local _, file_table = M.split_paths()
+        local l = vim.fn.line('.')
+        prev_line_pos = curr_line_pos
+        curr_line_pos = l
 
-        local curr_line_count = vim.api.nvim_buf_line_count(0)
-        if curr_line_count == last_line_count - 1 then
-            local lines = vim.api.nvim_buf_get_lines(bufnr_by_type.file, 0, -1, false)
-            local deleted_line_idx = #file_table
-            for i, line in ipairs(lines) do
-                if file_table[i] ~= line then
-                    deleted_line_idx = i
-                    break
-                end
+        local c = vim.api.nvim_buf_line_count(bufnr_by_type.file)
+        curr_lines_count = c
+    end
+end
+
+local function delete_buffers()
+    return function()
+        if curr_lines_count < prev_lines_count then
+            local idx = curr_line_pos
+            if prev_line_pos ~= curr_line_pos and curr_line_pos == curr_lines_count then -- when delete from the end of list
+                idx = curr_line_pos + 1
             end
 
-            vim.api.nvim_buf_delete(vim.fn.bufnr(paths[deleted_line_idx]), { force = true })
-            table.remove(paths, deleted_line_idx)
+            local count_delete = prev_lines_count - curr_lines_count
+            while count_delete > 0 do
+                vim.api.nvim_buf_delete(vim.fn.bufnr(paths[idx]), { force = true })
+                table.remove(paths, idx)
+                count_delete = count_delete - 1
+            end
+
+            prev_lines_count = curr_lines_count
 
             M.render()
             M.render_preview(paths[vim.fn.line('.')])
-            last_line_count = last_line_count - 1
         end
     end
 end
@@ -185,10 +204,16 @@ function M.register_autocmds()
         callback = redraw_preview()
     })
 
-    vim.api.nvim_create_autocmd("TextChanged", {
-        buffer = bufnr_by_type.file,
+    vim.api.nvim_create_autocmd("CursorMoved", {
         group = augroup_name,
-        callback = delete_buffer()
+        buffer = bufnr_by_type.file,
+        callback = register_line_movements()
+    })
+
+    vim.api.nvim_create_autocmd("TextChanged", {
+        group = augroup_name,
+        buffer = bufnr_by_type.file,
+        callback = delete_buffers()
     })
 end
 
