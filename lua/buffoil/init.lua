@@ -139,46 +139,56 @@ function M.render_preview(path)
     end
 end
 
-function M.preview_renderer_register()
+local function delete_buffer()
+    local last_line_count = vim.api.nvim_buf_line_count(bufnr_by_type.file)
+
+    return function()
+        local _, file_table = M.split_paths()
+
+        local curr_line_count = vim.api.nvim_buf_line_count(0)
+        if curr_line_count == last_line_count - 1 then
+            local lines = vim.api.nvim_buf_get_lines(bufnr_by_type.file, 0, -1, false)
+            local deleted_line_idx = #file_table
+            for i, line in ipairs(lines) do
+                if file_table[i] ~= line then
+                    deleted_line_idx = i
+                    break
+                end
+            end
+
+            vim.api.nvim_buf_delete(vim.fn.bufnr(paths[deleted_line_idx]), { force = true })
+            table.remove(paths, deleted_line_idx)
+
+            M.render()
+            M.render_preview(paths[vim.fn.line('.')])
+            last_line_count = last_line_count - 1
+        end
+    end
+end
+
+local function redraw_preview()
     local last_line = vim.api.nvim_win_get_cursor(winid_by_type.file)[1]
+
+    return function()
+        local curr_line = vim.fn.line('.')
+        if curr_line ~= last_line then
+            M.render_preview(paths[curr_line])
+            last_line = curr_line
+        end
+    end
+end
+
+function M.register_autocmds()
     vim.api.nvim_create_autocmd("CursorMoved", {
         group = augroup_name,
         buffer = bufnr_by_type.file,
-        callback = function()
-            local curr_line = vim.fn.line('.')
-            if curr_line ~= last_line then
-                M.render_preview(paths[curr_line])
-                last_line = curr_line
-            end
-        end
+        callback = redraw_preview()
     })
 
-    local last_line_count = vim.api.nvim_buf_line_count(bufnr_by_type.file)
     vim.api.nvim_create_autocmd("TextChanged", {
         buffer = bufnr_by_type.file,
         group = augroup_name,
-        callback = function()
-            local _, file_table = M.split_paths()
-
-            local curr_line_count = vim.api.nvim_buf_line_count(0)
-            if curr_line_count == last_line_count - 1 then
-                local lines = vim.api.nvim_buf_get_lines(bufnr_by_type.file, 0, -1, false)
-                local deleted_line_idx = #file_table
-                for i, line in ipairs(lines) do
-                    if file_table[i] ~= line then
-                        deleted_line_idx = i
-                        break
-                    end
-                end
-
-                vim.api.nvim_buf_delete(vim.fn.bufnr(paths[deleted_line_idx]), { force = true })
-                table.remove(paths, deleted_line_idx)
-
-                M.render()
-                M.render_preview(paths[vim.fn.line('.')])
-                last_line_count = last_line_count - 1
-            end
-        end
+        callback = delete_buffer()
     })
 end
 
@@ -307,7 +317,7 @@ function M.show()
 
     M.refresh_buffer_list()
     M.render()
-    M.preview_renderer_register()
+    M.register_autocmds()
     M.register_keymaps()
 end
 
