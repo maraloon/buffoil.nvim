@@ -262,7 +262,7 @@ function M.render()
     ---- fill buffers with content
     vim.api.nvim_buf_set_lines(bufnr_by_type.path, 0, -1, false, path_table)
     vim.api.nvim_buf_set_lines(bufnr_by_type.file, 0, -1, false, file_table)
-    M.render_preview(paths[default_start_line])
+    M.render_preview(paths[default_start_line] or paths[1])
 
     ---- create windows
     if winid_by_type.path == nil or not vim.api.nvim_win_is_valid(winid_by_type.path) then
