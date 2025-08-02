@@ -216,6 +216,11 @@ function M.register_autocmds()
         buffer = bufnr_by_type.file,
         callback = delete_buffers()
     })
+
+    vim.api.nvim_create_autocmd("VimLeavePre", {
+        group = augroup_name,
+        callback = function () M.close() end
+    })
 end
 
 function M.render()
