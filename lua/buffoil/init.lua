@@ -24,7 +24,6 @@ local winid_by_type = {
 local default_start_line = 2
 local augroup_name = 'OilBuf'
 
-
 local prev_line_pos = nil
 local curr_line_pos = nil
 local prev_lines_count = nil
@@ -198,6 +197,8 @@ local function redraw_preview()
 end
 
 function M.register_autocmds()
+    vim.api.nvim_create_augroup(augroup_name, { clear = true })
+
     vim.api.nvim_create_autocmd("CursorMoved", {
         group = augroup_name,
         buffer = bufnr_by_type.file,
@@ -223,7 +224,6 @@ function M.render()
     end
 
     local path_table, file_table, path_max_len, file_max_len = M.split_paths()
-    -- logger:debug(file_max_len)
 
     ---- check not existed plugin buffers
     local buf_exists = {
@@ -292,7 +292,7 @@ function M.render()
     vim.wo[winid_by_type.path].winbar = 'Paths'
     vim.wo[winid_by_type.file].winbar = 'Filenames'
     vim.wo[winid_by_type.preview].winbar = 'Preview'
-    vim.opt.statusline = 'buffoil.nvim'
+    -- vim.opt.statusline = 'buffoil.nvim'
 
     vim.api.nvim_set_current_win(winid_by_type.path)
     vim.cmd('set nornu')
@@ -320,8 +320,27 @@ function M.refresh_buffer_list()
     end
 end
 
+M.search = function()
+    vim.fn.inputsave()
+    local input = vim.fn.input('/')
+    vim.fn.inputrestore()
+
+    vim.api.nvim_del_augroup_by_name(augroup_name)
+
+    for i = #paths, 1, -1 do
+        if not paths[i]:find(input) then
+            table.remove(paths, i)
+        end
+    end
+
+    M.render()
+    M.register_autocmds()
+end
+
 function M.register_keymaps()
     vim.api.nvim_buf_set_keymap(bufnr_by_type.file, 'n', '<cr>', ':lua require("buffoil").select()<cr>',
+        {})
+    vim.api.nvim_buf_set_keymap(bufnr_by_type.file, 'n', '/', ':lua require("buffoil").search()<cr>',
         {})
     vim.api.nvim_buf_set_keymap(bufnr_by_type.file, 'n', '<esc>', ':lua require("buffoil").close()<cr>',
         { noremap = true, silent = true })
@@ -335,8 +354,6 @@ function M.show()
     end
     opened = true
 
-    vim.api.nvim_create_augroup(augroup_name, { clear = true })
-
     current_buf = M.get_current_buf()
     alt_buf = M.get_prev_buf()
 
@@ -345,15 +362,5 @@ function M.show()
     M.register_autocmds()
     M.register_keymaps()
 end
-
---
--- TODO:
--- `raw mode` for editing as you want
--- api methods and set mappings for hipsters:
---      <ctrl-x>: delete selected buffer
---      <ctrl-j>: move selected 1 pos down
---      <ctrl-k>: move selected 1 pos up
--- TODO: floating window and others view options (raw mode, without preview)
--- TODO: ignore /tmp/*
 
 return M
